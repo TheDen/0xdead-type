@@ -1,0 +1,176 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>0xDEAD//TYPE - TheDen</title>
+    <style>
+      @font-face {
+        font-family: "VCR";
+        src: url("assets/vcr.ttf") format("truetype");
+      }
+
+      body {
+        margin: 0;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        height: 100vh;
+        background-color: black;
+        color: white;
+        font-family: "VCR", sans-serif;
+        text-align: center;
+      }
+      canvas {
+        display: block;
+        border: 3px solid rgba(0, 255, 255, 0.5);
+        box-shadow: 0 0 15px rgba(0, 255, 255, 0.3);
+      }
+
+      canvas:focus {
+        outline: none;
+      }
+
+      #title {
+        font-size: 2em;
+        margin-bottom: 5px;
+        text-shadow: 0 0 10px rgba(0, 255, 255, 0.8);
+        animation: glow 1.5s infinite alternate ease-in-out;
+      }
+
+      #author {
+        font-size: 1.2em;
+        opacity: 0.8;
+        margin-bottom: 10px;
+        text-shadow: 0 0 5px rgba(255, 255, 255, 0.5);
+      }
+
+      @keyframes glow {
+        from {
+          text-shadow: 0 0 5px rgba(0, 255, 255, 0.5);
+        }
+        to {
+          text-shadow: 0 0 20px rgba(0, 255, 255, 1);
+        }
+      }
+
+      #instructions {
+        margin-top: 10px;
+        font-size: 1.2em;
+        opacity: 0.8;
+        text-shadow: 0 0 5px rgba(255, 255, 255, 0.5);
+        animation: pulse 2s infinite alternate ease-in-out;
+      }
+
+      #sound-warning {
+        font-size: 1em;
+        margin-top: 5px;
+        opacity: 0.7;
+        text-shadow: 0 0 5px rgba(255, 255, 255, 0.5);
+      }
+
+      @keyframes pulse {
+        from {
+          opacity: 0.6;
+          transform: scale(1);
+        }
+        to {
+          opacity: 1;
+          transform: scale(1.05);
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div id="title">0xDEAD//TYPE</div>
+    <div id="author">
+      <a
+        style="color: unset; text-decoration: none"
+        href="https://theden.sh"
+        target="_blank"
+        >By TheDen</a
+      >
+    </div>
+    <canvas
+      id="canvas"
+      oncontextmenu="event.preventDefault()"
+      tabindex="-1"
+    ></canvas>
+    <div id="instructions">
+      Use Up/Down or W/S keys to move, press space to dash. Enjoy!
+    </div>
+    <div id="sound-warning">Click anywhere to enable sound in the browser.</div>
+
+    <script>
+      var canvasElement = document.getElementById("canvas");
+      var gameAspectRatio = 4 / 3;
+
+      function resizeCanvas() {
+        let dpr = window.devicePixelRatio || 1;
+        let windowWidth = window.innerWidth;
+        let windowHeight = window.innerHeight - 100; // Adjust for title, author & instructions
+
+        let newWidth = windowWidth;
+        let newHeight = windowWidth / gameAspectRatio;
+
+        if (newHeight > windowHeight) {
+          newHeight = windowHeight;
+          newWidth = windowHeight * gameAspectRatio;
+        }
+
+        canvasElement.style.width = newWidth + "px";
+        canvasElement.style.height = newHeight + "px";
+        canvasElement.width = newWidth * dpr;
+        canvasElement.height = newHeight * dpr;
+
+        if (Module.ctx) {
+          Module.ctx.viewport(0, 0, canvasElement.width, canvasElement.height);
+        }
+      }
+
+      window.addEventListener("resize", resizeCanvas);
+
+      var Module = {
+        canvas: canvasElement,
+        onRuntimeInitialized: function () {
+          console.log("WASM Game Loaded");
+          unlockAudio(); // Unlocks audio automatically
+          resizeCanvas();
+        },
+      };
+
+      function unlockAudio() {
+        var context = new (window.AudioContext || window.webkitAudioContext)();
+        function resumeAudio() {
+          if (context.state === "suspended") {
+            context
+              .resume()
+              .then(() => {
+                console.log("Audio Unlocked!");
+                document.getElementById("sound-warning").style.display = "none"; // Hide warning after click
+              })
+              .catch((err) => console.warn("Audio unlock failed:", err));
+          }
+          removeEventListeners();
+        }
+
+        function removeEventListeners() {
+          document.removeEventListener("click", resumeAudio);
+          document.removeEventListener("keydown", resumeAudio);
+          document.removeEventListener("mousemove", resumeAudio);
+          document.removeEventListener("touchstart", resumeAudio);
+        }
+
+        // Listen for user interaction to unlock audio
+        document.addEventListener("click", resumeAudio);
+        document.addEventListener("keydown", resumeAudio);
+        document.addEventListener("mousemove", resumeAudio);
+        document.addEventListener("touchstart", resumeAudio);
+      }
+    </script>
+
+    <script async src="index.js"></script>
+  </body>
+</html>
