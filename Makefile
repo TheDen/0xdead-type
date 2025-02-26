@@ -1,5 +1,5 @@
 # Project settings
-TARGET = blockletter
+TARGET = 0xdead-type
 SRC = game.c
 
 # Native build settings
@@ -39,13 +39,13 @@ serve: web
 # Clean rule
 clean:
 	rm -f $(TARGET) web.html index.js index.wasm
-	rm -rf blockletter-game/
+	rm -rf 0xdead-type/
 
 # Package native build
 bundle: build
-	rm -rf blockletter-game/ && rm -f $(TARGET).zip
-	mkdir -p blockletter-game && cp $(TARGET) assets/*.wav assets/vcr.ttf blockletter-game/
-	zip -r $(TARGET).zip blockletter-game
+	rm -rf 0xdead-type/ && rm -f $(TARGET).zip
+	mkdir -p 0xdead-type && cp $(TARGET) assets/*.wav assets/vcr.ttf 0xdead-type/
+	zip -r $(TARGET).zip 0xdead-type
 	rm -rf blockletter
 
 .PHONY: all clean web serve bundle
