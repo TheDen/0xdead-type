@@ -1,0 +1,36 @@
+# Ignore VIM's backup generated files
+*.swp
+*.swo
+*~
+
+# Ignore compiled binaries and build artifacts
+0xdead-type
+0xdead-type.zip
+0xdead-type/
+
+# Ignore object files and other temporary build files
+*.o
+*.a
+*.so
+*.dylib
+*.dll
+*.exe
+*.out
+
+# Ignore logs and debugging files
+*.log
+*.tmp
+*.swp
+*.swo
+
+# Ignore generated package files
+*.zip
+*.tar.gz
+
+# Ignore editor and system-specific files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.bak
+*~
