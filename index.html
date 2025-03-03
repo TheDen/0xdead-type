@@ -153,8 +153,10 @@
 
       function resizeCanvas() {
         let dpr = window.devicePixelRatio || 1;
-        let windowWidth = window.innerWidth;
-        let windowHeight = window.innerHeight - 100; // Adjust for title, author & instructions
+        let scaleFactor = 0.75;
+
+        let windowWidth = window.innerWidth * scaleFactor;
+        let windowHeight = (window.innerHeight - 100) * scaleFactor; // Subtract 100px for the title and instructions
 
         let newWidth = windowWidth;
         let newHeight = windowWidth / gameAspectRatio;
@@ -174,17 +176,30 @@
         }
       }
 
+      // Resize canvas after the DOM is fully loaded
+      document.addEventListener("DOMContentLoaded", function () {
+        resizeCanvas();
+      });
+
+      // Resize canvas again after all assets are loaded
+      window.onload = function () {
+        resizeCanvas();
+      };
+
+      // Resize canvas when the window resizes
       window.addEventListener("resize", resizeCanvas);
 
+      // Ensure the canvas resizes after the WebAssembly module initializes
       var Module = {
         canvas: canvasElement,
         onRuntimeInitialized: function () {
           console.log("WASM Game Loaded");
-          unlockAudio(); // Unlocks audio automatically
-          resizeCanvas();
+          unlockAudio();
+          setTimeout(resizeCanvas, 50); // Small delay to ensure rendering has started
         },
       };
 
+      // Function to unlock audio
       function unlockAudio() {
         var context = new (window.AudioContext || window.webkitAudioContext)();
         function resumeAudio() {
@@ -193,7 +208,7 @@
               .resume()
               .then(() => {
                 console.log("Audio Unlocked!");
-                document.getElementById("sound-warning").style.display = "none"; // Hide warning after click
+                document.getElementById("sound-warning").style.display = "none";
               })
               .catch((err) => console.warn("Audio unlock failed:", err));
           }
@@ -207,7 +222,6 @@
           document.removeEventListener("touchstart", resumeAudio);
         }
 
-        // Listen for user interaction to unlock audio
         document.addEventListener("click", resumeAudio);
         document.addEventListener("keydown", resumeAudio);
         document.addEventListener("mousemove", resumeAudio);
