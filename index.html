@@ -81,9 +81,53 @@
           transform: scale(1.05);
         }
       }
+
+      #mobile-warning {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.9);
+        color: white;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        text-align: center;
+        font-size: 1.5em;
+        z-index: 9999;
+        font-family: "VCR", sans-serif;
+        text-shadow: 0 0 10px rgba(255, 0, 0, 0.8);
+      }
+
+      #mobile-warning-content {
+        padding: 20px;
+        border: 2px solid rgba(255, 0, 0, 0.8);
+        box-shadow: 0 0 15px rgba(255, 0, 0, 0.8);
+      }
     </style>
   </head>
   <body>
+    <script>
+      function isMobileDevice() {
+        return /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+      }
+
+      function showMobileWarning() {
+        let warningDiv = document.createElement("div");
+        warningDiv.id = "mobile-warning";
+        warningDiv.innerHTML = `
+      <div id="mobile-warning-content">
+        <p>⚠ This game must be played on a desktop with a keyboard.</p>
+      </div>
+    `;
+        document.body.appendChild(warningDiv);
+      }
+
+      if (isMobileDevice()) {
+        showMobileWarning();
+      }
+    </script>
     <div id="title">0xDEAD//TYPE</div>
     <div id="author">
       <a
