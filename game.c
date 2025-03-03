@@ -183,6 +183,20 @@ Color GetBlockColor(char letter)
     }
 }
 
+// Function to draw nonbreakable blocks with a pattern overlay
+void DrawPatternedBlock(Rectangle rect, Color color)
+{
+    // Draw the main block
+    DrawRectangleRec(rect, color);
+
+    // Draw diagonal pattern overlay
+    for (int i = 0; i < BLOCK_SIZE; i += 4) // Spacing between lines
+    {
+        DrawLine(rect.x + i, rect.y, rect.x, rect.y + i, Fade(GREEN, 0.4f)); // Top-left diagonal
+        DrawLine(rect.x + BLOCK_SIZE, rect.y + i, rect.x + i, rect.y + BLOCK_SIZE, Fade(GREEN, 0.4f)); // Bottom-right diagonal
+    }
+}
+
 // Draws a grid that distorts around a "black hole" center point
 void DrawDistortedGrid(float speed, int cellSize, Color gridColor, Vector2 blackHoleCenter)
 {
@@ -837,7 +851,7 @@ int main()
                                 }
                                 else
                                 {
-                                    // Outline for unbreakable blocks
+                                    DrawPatternedBlock(block->rect, blockColor);
                                     DrawRectangleLinesEx(block->rect, 0.5f, GREEN);
                                 }
                             }
