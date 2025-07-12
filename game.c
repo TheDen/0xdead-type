@@ -142,7 +142,7 @@ Color GetBlockColor(char letter)
 {
     switch (letter)
     {
-        case '/': return Fade(WHITE, 0.8f); // Special color for the Black Hole block
+        case '0': return Fade(WHITE, 0.8f); // Special color for the Black Hole block
         case 'A': return RED;
         case 'B': return ORANGE;
         case 'C': return GOLD;
@@ -169,7 +169,6 @@ Color GetBlockColor(char letter)
         case 'X': return PURPLE;
         case 'Y': return DARKORANGE;
         case 'Z': return LIGHTGREEN;
-        case '0': return (Color){32, 32, 32, 255};
         case '1': return WHITE;
         case '2': return GOLD;
         case '3': return ORANGE;
@@ -404,7 +403,7 @@ void GenerateWall(Wall *wall, float x, int thickness, int score)
                 }
                 else if (GetRandomValue(1, 200) <= 1)
                 {
-                    block->letter = '/';
+                    block->letter = '0';
                 }
                 else
                 {
@@ -725,7 +724,7 @@ int main()
                                     block->fadeAlpha = 1.0f; // Start fading
                                     block->active    = false;
 
-                                    if (block->letter == '/')
+                                    if (block->letter == '0')
                                     {
                                         blackHoleActive   = true;
                                         blackHoleEndTime  = GetTime() + 1.0f;
@@ -823,7 +822,7 @@ int main()
                                 Color blockColor = block->breakable ? GetBlockColor(block->letter) : BLACK;
 
                                 // Special rainbow color for black hole block
-                                if (block->letter == '/')
+                                if (block->letter == '0')
                                 {
                                     float hue = fmod(GetTime() * 400, 360); // Cycle 0-360
                                     Color rainbowColor = ColorFromHSV(hue, 0.9f, 0.9f);

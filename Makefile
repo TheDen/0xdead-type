@@ -46,6 +46,6 @@ bundle: build
 	rm -rf 0xdead-type/ && rm -f $(TARGET).zip
 	mkdir -p 0xdead-type && cp $(TARGET) assets/*.wav assets/vcr.ttf 0xdead-type/
 	zip -r $(TARGET).zip 0xdead-type
-	rm -rf blockletter
+	rm -rf 0xdead-type/
 
 .PHONY: all clean web serve bundle
