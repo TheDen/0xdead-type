@@ -43,7 +43,9 @@
 *******************************************************************************************/
 
 // Game states
-int    dashCount           = 2;  // Max dashes
+int    invincibleCount      = 2;
+bool   playerInvincible     = false;
+float  invisibilityEndTime = 0.0f;
 bool   soundEnabled        = true;
 bool   blackHoleActive     = false;
 float  blackHoleEndTime    = 0.0f;
@@ -131,7 +133,7 @@ void    DrawRotatingBlock(Rectangle rect, Color color, float rotation, float sca
 void    DrawRotatedTriangleWithGlow(Vector2 center, float size, float rotation, Color color);
 
 void    GenerateWall(Wall *wall, float x, int thickness, int score);
-void    ResetGameState(Wall walls[], Vector2 *playerPosition, int *score, float *wallSpeed, bool *gameOver, bool *gameOverTriggered, int *dashCount);
+void    ResetGameState(Wall walls[], Vector2 *playerPosition, int *score, float *wallSpeed, bool *gameOver, bool *gameOverTriggered, int *invincibleCount);
 
 /*******************************************************************************************
 *  FUNCTION DEFINITIONS
@@ -447,7 +449,7 @@ void GenerateWall(Wall *wall, float x, int thickness, int score)
 }
 
 // Resets the game state for a new round
-void ResetGameState(Wall walls[], Vector2 *playerPosition, int *score, float *wallSpeed, bool *gameOver, bool *gameOverTriggered, int *dashCount)
+void ResetGameState(Wall walls[], Vector2 *playerPosition, int *score, float *wallSpeed, bool *gameOver, bool *gameOverTriggered, int *invincibleCount)
 {
     StopSound(crashSound);
 
@@ -456,7 +458,7 @@ void ResetGameState(Wall walls[], Vector2 *playerPosition, int *score, float *wa
     playerPosition->x = 50;
 
     // Reset other parameters
-    *dashCount        = 2;
+    *invincibleCount        = 2;
     *score            = 0;
     *wallSpeed        = 200;
     *gameOver         = false;
@@ -551,10 +553,10 @@ int main()
             Vector2 titleSize       = MeasureTextEx(font, "0xDEAD//TYPE", 40, 1);
             Vector2 instructionSize = MeasureTextEx(font, "Press SPACE to Start", 20, 1);
             Vector2 controlsSize    = MeasureTextEx(font, "Controls:", 25, 1);
-            Vector2 moveSize       = MeasureTextEx(font, "Move: W/S or Up/Down", 18, 1);
-            Vector2 dashSize       = MeasureTextEx(font, "Dash: SPACE", 18, 1);
-            Vector2 pauseSize      = MeasureTextEx(font, "Pause: ESC", 18, 1);
-            Vector2 soundTextSize  = MeasureTextEx(font, soundText, 20, 1);
+            Vector2 moveSize        = MeasureTextEx(font, "Move: W/S or Up/Down", 18, 1);
+            Vector2 invincibleSize   = MeasureTextEx(font, "Invincibility: SPACE", 18, 1);
+            Vector2 pauseSize       = MeasureTextEx(font, "Pause: ESC", 18, 1);
+            Vector2 soundTextSize   = MeasureTextEx(font, soundText, 20, 1);
 
             DrawTextEx(font, "0xDEAD//TYPE",
                     (Vector2){(SCREEN_WIDTH - titleSize.x) / 2, (SCREEN_HEIGHT - titleSize.y) / 2 - 50},
@@ -580,8 +582,8 @@ int main()
                     (Vector2){(SCREEN_WIDTH - moveSize.x) / 2, controlsStartY + 40}, 
                     18, 1, GRAY);
 
-            DrawTextEx(font, "Dash: SPACE", 
-                    (Vector2){(SCREEN_WIDTH - dashSize.x) / 2, controlsStartY + 65}, 
+            DrawTextEx(font, "Invincibility: SPACE", 
+                    (Vector2){(SCREEN_WIDTH - invincibleSize.x) / 2, controlsStartY + 65}, 
                     18, 1, GRAY);
 
             DrawTextEx(font, "Pause: ESC", 
@@ -596,16 +598,24 @@ int main()
             continue;
         }
 
-        // GAME CONTROLS: dash, pause, etc.
-        if (IsKeyPressed(KEY_SPACE) && dashCount > 0 && !paused && !gameOver)
+        // GAME CONTROLS: invincible, pause, etc.
+        if (IsKeyPressed(KEY_SPACE) && invincibleCount > 0 && !paused && !gameOver)
         {
             PlaySound(warpSound);
-            playerPosition.x += 100;  // Dash forward
-            dashCount--;
+            invincibleCount--;
+
+            // Activate invisibility
+            playerInvincible = true;
+            invisibilityEndTime = GetTime() + 5.0f;
 
             // Store afterimage
             afterimages[afterimageIndex] = (Afterimage){ playerPosition, 1.0f };
             afterimageIndex = (afterimageIndex + 1) % MAX_AFTERIMAGES;
+        }
+
+        if (playerInvincible && GetTime() > invisibilityEndTime)
+        {
+            playerInvincible = false;
         }
 
         // Toggle pause with ESC
@@ -704,7 +714,7 @@ int main()
                             // Collision
                             if (block->active)
                             {
-                                if (CheckCollisionPointRec(playerPosition, block->rect))
+                                if (!playerInvincible && CheckCollisionPointRec(playerPosition, block->rect))
                                 {
                                     if (!gameOverTriggered)
                                     {
@@ -798,13 +808,33 @@ int main()
                 {
                     if (afterimages[i].alpha > 0.0f)
                     {
-                        DrawRotatedTriangleWithGlow(afterimages[i].position, playerSize, rotationAngle, Fade(GREEN, afterimages[i].alpha));
                         afterimages[i].alpha -= GetFrameTime();
                     }
                 }
+                    bool isBlinkVisible = true;
+                    Color shipColor = GREEN;  // default
 
-                // Current player ship
-                DrawRotatedTriangleWithGlow(playerShakenPos, playerSize, rotationAngle, GREEN);
+                    if (playerInvincible)
+                    {
+                        // Blink cycle: 0.6s total, alternate color every 0.3s
+                        float blinkCycle = fmod(GetTime(), 0.6f);
+                        isBlinkVisible = true;
+
+                        if (blinkCycle < 0.3f)
+                        {
+                            shipColor = Fade(GREEN, 0.25f); // faint green
+                        }
+                        else
+                        {
+                            shipColor = Fade(PURPLE, 0.25f); // blink to purple
+                        }
+                    }
+
+                    if (isBlinkVisible)
+                    {
+                        DrawRotatedTriangleWithGlow(playerShakenPos, playerSize, rotationAngle, shipColor);
+                    }
+
             }
 
             // Draw walls & blocks
@@ -859,12 +889,32 @@ int main()
                 }
             }
 
-            // Dash Indicator (bottom-left)
+            // Invincible indicator (bottom-left)
             for (int i = 0; i < 2; i++)
             {
-                Color dashColor = (i < dashCount) ? Fade(WHITE, 0.5f) : Fade(DARKGRAY, 0.3f);
-                DrawCircle(30 + (i * 20), SCREEN_HEIGHT - 30, 6, dashColor);
+                Color invincibleColor = (i < invincibleCount) ? Fade(WHITE, 0.5f) : Fade(DARKGRAY, 0.3f);
+                DrawCircle(30 + (i * 20), SCREEN_HEIGHT - 30, 6, invincibleColor);
             }
+            if (playerInvincible)
+{
+    float timeLeft = invisibilityEndTime - GetTime();
+    float maxTime  = 5.0f;
+    if (timeLeft < 0) timeLeft = 0;
+
+    float barWidth  = 80;
+    float barHeight = 10;
+    float barX = 20;
+    float barY = SCREEN_HEIGHT - 55;
+
+    float progress = timeLeft / maxTime;
+
+    // Background
+    DrawRectangle(barX, barY, barWidth, barHeight, Fade(DARKGRAY, 0.4f));
+    // Foreground (shrinks with time)
+    DrawRectangle(barX, barY, barWidth * progress, barHeight, Fade(GREEN, 0.6f));
+    // Border
+    DrawRectangleLines(barX, barY, barWidth, barHeight, GREEN);
+}
 
             // Persistent Personal Best
             static int pbScore = 0;
@@ -943,14 +993,14 @@ int main()
                 // Restart
                 if (IsKeyPressed(KEY_R))
                 {
-                    ResetGameState(walls, &playerPosition, &score, &wallSpeed, &gameOver, &gameOverTriggered, &dashCount);
+                    ResetGameState(walls, &playerPosition, &score, &wallSpeed, &gameOver, &gameOverTriggered, &invincibleCount);
                     paused = false;
                 }
 
                 // Return to main menu
                 if (IsKeyPressed(KEY_Q))
                 {
-                    ResetGameState(walls, &playerPosition, &score, &wallSpeed, &gameOver, &gameOverTriggered, &dashCount);
+                    ResetGameState(walls, &playerPosition, &score, &wallSpeed, &gameOver, &gameOverTriggered, &invincibleCount);
                     inMainMenu = true;
                     gameOver   = false;
                 }
@@ -1005,12 +1055,12 @@ int main()
 
             // Handle input
             if (IsKeyPressed(KEY_R)) {
-                ResetGameState(walls, &playerPosition, &score, &wallSpeed, &gameOver, &gameOverTriggered, &dashCount);
+                ResetGameState(walls, &playerPosition, &score, &wallSpeed, &gameOver, &gameOverTriggered, &invincibleCount);
                 paused = false;
             }
 
             if (IsKeyPressed(KEY_Q)) {
-                ResetGameState(walls, &playerPosition, &score, &wallSpeed, &gameOver, &gameOverTriggered, &dashCount);
+                ResetGameState(walls, &playerPosition, &score, &wallSpeed, &gameOver, &gameOverTriggered, &invincibleCount);
                 inMainMenu = true;
                 paused = false;
             }

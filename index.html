@@ -103,7 +103,7 @@
         }
         to {
           opacity: 1;
-          transform: scale(1.05);
+          transform: scale(1.001);
         }
       }
 
@@ -168,9 +168,9 @@
       tabindex="-1"
     ></canvas>
     <div id="instructions">
-      Press the letters to destroy the blocks!<br />
-      Up/Down or W/S keys to move. Spacebar to dash<br />
-      Look out for the special `0` block!
+      Press the matching keys to destroy the blocks!<br />
+      Use W/S or Up/Down to move. Hit Spacebar for temporary invincibility<br />
+      Keep an eye out for the special ‘0’ block!<br />
     </div>
     <div id="sound-warning">Click anywhere to enable sound in the browser.</div>
 
@@ -180,7 +180,7 @@
 
       function resizeCanvas() {
         let dpr = window.devicePixelRatio || 1;
-        let scaleFactor = 0.75;
+        let scaleFactor = 0.8;
 
         let windowWidth = window.innerWidth * scaleFactor;
         let windowHeight = (window.innerHeight - 100) * scaleFactor; // Subtract 100px for the title and instructions
