@@ -485,7 +485,7 @@ int main()
     // Initialization
     SetConfigFlags(FLAG_VSYNC_HINT | FLAG_MSAA_4X_HINT);
     SetConfigFlags(FLAG_WINDOW_HIGHDPI);
-    InitWindow(SCREEN_WIDTH, SCREEN_HEIGHT, "BlockLetter");
+    InitWindow(SCREEN_WIDTH, SCREEN_HEIGHT, "0xDEAD//TYPE");
     SetExitKey(0);
     SetTargetFPS(60);
 
