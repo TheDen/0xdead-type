@@ -10,7 +10,7 @@ LDFLAGS = $(shell pkg-config --libs raylib) -lm -lpthread -ldl
 # WebAssembly (Emscripten) settings
 EMCC = emcc
 RAYLIB_PATH = ./raylib
-EMFLAGS = -O3 -Wall -DPLATFORM_WEB -s USE_GLFW=3 -s ASYNCIFY --preload-file assets
+EMFLAGS = -O3 -Wall -DPLATFORM_WEB -s USE_GLFW=3 -s ASYNCIFY --preload-file assets -s EXPORTED_RUNTIME_METHODS='["cwrap", "ccall", "HEAPF32", "getValue", "setValue"]'
 INCLUDE = -I$(RAYLIB_PATH)/src
 LIBS = $(RAYLIB_PATH)/src/libraylib.a -s USE_GLFW=3 -s ASYNCIFY -s TOTAL_MEMORY=67108864 -s ALLOW_MEMORY_GROWTH=1
 
