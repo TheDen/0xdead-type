@@ -35,7 +35,7 @@
 #define SALMON        (Color){250, 128, 114, 255}
 
 // Particle/Afterimage Limits
-#define MAX_PARTICLES    1000
+#define MAX_PARTICLES    300
 #define MAX_AFTERIMAGES  10
 
 // Anti-spam settings
@@ -301,8 +301,8 @@ void UpdateAndDrawParticles(float deltaTime)
             particles[i].position.x += particles[i].velocity.x * deltaTime * 60;
             particles[i].position.y += particles[i].velocity.y * deltaTime * 60;
 
-            // Apply slight gravity
-            particles[i].velocity.y += 0.05f;
+            // Apply slight gravity (frame-rate independent)
+            particles[i].velocity.y += 3.0f * deltaTime;
 
             // Reduce lifetime
             particles[i].lifetime -= deltaTime;
@@ -316,32 +316,21 @@ void UpdateAndDrawParticles(float deltaTime)
 // Draws a moving grid that scrolls horizontally/vertically
 void DrawMovingGrid(float speed, int cellSize, Color gridColor)
 {
-    float gridOffset = fmod(GetTime() * speed, cellSize);
+    int gridOffset = (int)fmod(GetTime() * speed, cellSize);
+    Color glowColor = Fade(gridColor, 0.07f);
+    Color mainColor = Fade(gridColor, 0.15f);
 
-    // Soft glow layer (draws slightly faded lines behind the grid)
-    for (int i = -2; i <= 2; i += 2)
-    {
-        for (int j = -2; j <= 2; j += 2)
-        {
-            for (int x = -gridOffset; x < SCREEN_WIDTH; x += cellSize)
-            {
-                DrawLine(x + i, 0, x + i, SCREEN_HEIGHT, Fade(gridColor, 0.05f));
-            }
-            for (int y = -gridOffset; y < SCREEN_HEIGHT; y += cellSize)
-            {
-                DrawLine(0, y + j, SCREEN_WIDTH, y + j, Fade(gridColor, 0.05f));
-            }
-        }
-    }
-
-    // Main grid
     for (int x = -gridOffset; x < SCREEN_WIDTH; x += cellSize)
     {
-        DrawLine(x, 0, x, SCREEN_HEIGHT, Fade(gridColor, 0.15f));
+        DrawLine(x - 1, 0, x - 1, SCREEN_HEIGHT, glowColor);
+        DrawLine(x + 1, 0, x + 1, SCREEN_HEIGHT, glowColor);
+        DrawLine(x,     0, x,     SCREEN_HEIGHT, mainColor);
     }
     for (int y = -gridOffset; y < SCREEN_HEIGHT; y += cellSize)
     {
-        DrawLine(0, y, SCREEN_WIDTH, y, Fade(gridColor, 0.15f));
+        DrawLine(0, y - 1, SCREEN_WIDTH, y - 1, glowColor);
+        DrawLine(0, y + 1, SCREEN_WIDTH, y + 1, glowColor);
+        DrawLine(0, y,     SCREEN_WIDTH, y,     mainColor);
     }
 }
 
@@ -365,29 +354,35 @@ void DrawRotatingBlock(Rectangle rect, Color color, float rotation, float scale)
 void DrawRotatedTriangleWithGlow(Vector2 center, float size, float rotation, Color color)
 {
     float radians = rotation * DEG2RAD;
+    float cosR    = cosf(radians);
+    float sinR    = sinf(radians);
 
-    // Define original triangle points
-    Vector2 top    = { center.x + size * 1.5f, center.y };
-    Vector2 left   = { center.x, center.y - size / 2 };
-    Vector2 right  = { center.x, center.y + size / 2 };
+    // Inline rotation: rotate (px,py) around center using precomputed cos/sin
+    #define ROT_X(px, py) (center.x + cosR * ((px) - center.x) - sinR * ((py) - center.y))
+    #define ROT_Y(px, py) (center.y + sinR * ((px) - center.x) + cosR * ((py) - center.y))
 
-    // Rotate all points
-    Vector2 rotatedTop   = RotatePoint(top,   center, radians);
-    Vector2 rotatedLeft  = RotatePoint(left,  center, radians);
-    Vector2 rotatedRight = RotatePoint(right, center, radians);
+    float tx = center.x + size * 1.5f, ty = center.y;
+    float lx = center.x,               ly = center.y - size / 2;
+    float rx = center.x,               ry = center.y + size / 2;
 
-    // Draw glow effect with slightly larger, transparent outlines
-    for (float glowSize = 1.0f; glowSize <= 3.0f; glowSize += 1.0f)
+    Vector2 rotTop   = { ROT_X(tx, ty), ROT_Y(tx, ty) };
+    Vector2 rotLeft  = { ROT_X(lx, ly), ROT_Y(lx, ly) };
+    Vector2 rotRight = { ROT_X(rx, ry), ROT_Y(rx, ry) };
+
+    Color glowColor = Fade(color, 0.2f);
+    for (float g = 1.0f; g <= 3.0f; g += 1.0f)
     {
-        Vector2 glowTop   = RotatePoint((Vector2){ top.x + glowSize,   top.y + glowSize },   center, radians);
-        Vector2 glowLeft  = RotatePoint((Vector2){ left.x - glowSize,  left.y - glowSize },  center, radians);
-        Vector2 glowRight = RotatePoint((Vector2){ right.x - glowSize, right.y + glowSize }, center, radians);
-
-        DrawTriangleLines(glowTop, glowLeft, glowRight, Fade(color, 0.2f));
+        DrawTriangleLines(
+            (Vector2){ ROT_X(tx + g, ty + g), ROT_Y(tx + g, ty + g) },
+            (Vector2){ ROT_X(lx - g, ly - g), ROT_Y(lx - g, ly - g) },
+            (Vector2){ ROT_X(rx - g, ry + g), ROT_Y(rx - g, ry + g) },
+            glowColor);
     }
 
-    // Draw the actual rotated player triangle
-    DrawTriangleLines(rotatedTop, rotatedLeft, rotatedRight, color);
+    DrawTriangleLines(rotTop, rotLeft, rotRight, color);
+
+    #undef ROT_X
+    #undef ROT_Y
 }
 
 // Generates a wall of blocks at a given x position with certain thickness

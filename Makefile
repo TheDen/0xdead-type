@@ -14,7 +14,6 @@ EMFLAGS = -O3 -Wall -DPLATFORM_WEB -s USE_GLFW=3 -s ASYNCIFY --preload-file asse
 INCLUDE = -I$(RAYLIB_PATH)/src
 LIBS = $(RAYLIB_PATH)/src/libraylib.a -s USE_GLFW=3 -s ASYNCIFY -s TOTAL_MEMORY=67108864 -s ALLOW_MEMORY_GROWTH=1
 
-
 # Default rule (build for native)
 .DEFAULT: build
 
