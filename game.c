@@ -38,6 +38,11 @@
 #define MAX_PARTICLES    1000
 #define MAX_AFTERIMAGES  10
 
+// Anti-spam settings
+#define KEY_COOLDOWN_TIME   0.15f   // seconds between any block-breaking key presses
+#define WRONG_KEY_FLASH_DUR 0.4f    // red flash duration on wrong key
+#define WRONG_KEY_LOCKOUT   0.6f    // input lockout duration for wrong key press
+
 /*******************************************************************************************
 *  GLOBAL VARIABLES
 *******************************************************************************************/
@@ -50,6 +55,12 @@ bool   soundEnabled        = true;
 bool   blackHoleActive     = false;
 float  blackHoleEndTime    = 0.0f;
 Vector2 blackHolePos       = { SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2 };
+
+// Anti-spam state
+float  keyPressCooldown    = 0.0f;  // min time between block-breaking key presses
+float  wrongKeyFlash       = 0.0f;  // brief red overlay timer (every wrong press)
+float  bufferOverflow      = 0.0f;  // BUFFER OVERFLOW message + lockout timer
+int    wrongKeyStreak      = 0;     // consecutive wrong presses; resets on correct press
 
 bool IsWindowFocused(void);
 bool   gameOver            = false;
@@ -213,11 +224,11 @@ void DrawDistortedGrid(float speed, int cellSize, Color gridColor, Vector2 black
 
             // Apply distortion based on distance
             float distortion = sinf(distance * 0.05f + GetTime() * 2.0f) * 4.0f;
-            x += distortion;
-            y += distortion;
+            float drawX = x + distortion;
+            float drawY = y + distortion;
 
-            DrawLine(x, 0, x, SCREEN_HEIGHT, Fade(gridColor, 0.15f));
-            DrawLine(0, y, SCREEN_WIDTH, y, Fade(gridColor, 0.15f));
+            DrawLine(drawX, 0, drawX, SCREEN_HEIGHT, Fade(gridColor, 0.15f));
+            DrawLine(0, drawY, SCREEN_WIDTH, drawY, Fade(gridColor, 0.15f));
         }
     }
 }
@@ -521,7 +532,6 @@ int main()
     while (!WindowShouldClose())
     {
         float deltaTime = GetFrameTime();
-        UpdateAndDrawParticles(deltaTime);
 
         // MAIN MENU
         if (inMainMenu)
@@ -571,7 +581,7 @@ int main()
 
             // Sound toggle text
             DrawTextEx(font, soundText,
-                    (Vector2){(SCREEN_WIDTH - instructionSize.x) / 2, (SCREEN_HEIGHT - instructionSize.y) - 10 },
+                    (Vector2){(SCREEN_WIDTH - soundTextSize.x) / 2, (SCREEN_HEIGHT - soundTextSize.y) - 10 },
                     20, 1, GRAY);
 
             DrawTextEx(font, "Controls:", 
@@ -686,10 +696,19 @@ int main()
             if (playerPosition.y < playerSize)                      playerPosition.y = playerSize;
             if (playerPosition.y > SCREEN_HEIGHT - playerSize)       playerPosition.y = SCREEN_HEIGHT - playerSize;
 
+            // Update anti-spam timers
+            if (keyPressCooldown > 0.0f) keyPressCooldown -= deltaTime;
+            if (wrongKeyFlash    > 0.0f) wrongKeyFlash    -= deltaTime;
+            if (bufferOverflow   > 0.0f) bufferOverflow   -= deltaTime;
+
             // Adjust wall speed/thickness by score
             wallSpeed = 100 + score * 2;
             int newThickness = 2 + score / 10;
             if (newThickness > 5) newThickness = 5;
+
+            // Track whether a block was destroyed this frame (for wrong-key detection)
+            bool blockDestroyedThisFrame  = false;
+            bool breakableBlockOnScreen   = false; // any typeable block currently visible
 
             // Wall movement & collision
             for (int i = 0; i < WALL_COUNT; i++)
@@ -728,11 +747,15 @@ int main()
                                     gameOver = true;
                                 }
 
+                                if (block->breakable)
+                                    breakableBlockOnScreen = true;
+
                                 // Break block if correct key pressed
-                                if (block->breakable && IsKeyPressed((int)block->letter))
+                                if (block->breakable && keyPressCooldown <= 0.0f && IsKeyPressed((int)block->letter))
                                 {
-                                    block->fadeAlpha = 1.0f; // Start fading
-                                    block->active    = false;
+                                    blockDestroyedThisFrame  = true;
+                                    block->fadeAlpha         = 1.0f; // Start fading
+                                    block->active            = false;
 
                                     if (block->letter == '0')
                                     {
@@ -780,6 +803,41 @@ int main()
                     }
                     score++;
                     walls[i].scored = true;
+                }
+            }
+
+            // Start cooldown after any successful key press (once per press, not per block)
+            if (blockDestroyedThisFrame) {
+                keyPressCooldown = KEY_COOLDOWN_TIME;
+                wrongKeyStreak   = 0;
+            }
+
+            // Wrong-key detection: only penalise when there are blocks on screen to type
+            if (!blockDestroyedThisFrame && keyPressCooldown <= 0.0f && breakableBlockOnScreen)
+            {
+                bool badKeyPressed = false;
+                for (int k = KEY_A; k <= KEY_Z; k++)
+                {
+                    if (k == KEY_W || k == KEY_S) continue;
+                    if (IsKeyPressed(k)) { badKeyPressed = true; break; }
+                }
+                if (!badKeyPressed)
+                {
+                    for (int k = KEY_ZERO; k <= KEY_NINE; k++)
+                    {
+                        if (IsKeyPressed(k)) { badKeyPressed = true; break; }
+                    }
+                }
+                if (badKeyPressed)
+                {
+                    wrongKeyFlash    = 0.5f;   // brief red flash every wrong press
+                    wrongKeyStreak++;
+                    if (wrongKeyStreak >= 3)
+                    {
+                        bufferOverflow   = WRONG_KEY_LOCKOUT;
+                        keyPressCooldown = WRONG_KEY_LOCKOUT;
+                        wrongKeyStreak   = 0;
+                    }
                 }
             }
         }
@@ -849,27 +907,27 @@ int main()
                             Block *block = &walls[i].blocks[row][col];
                             if (block->active)
                             {
-                                Color blockColor = block->breakable ? GetBlockColor(block->letter) : BLACK;
-
-                                // Special rainbow color for black hole block
                                 if (block->letter == '0')
                                 {
-                                    float hue = fmod(GetTime() * 400, 360); // Cycle 0-360
+                                    // Black hole block: rainbow color with letter
+                                    float hue = fmod(GetTime() * 400, 360);
                                     Color rainbowColor = ColorFromHSV(hue, 0.9f, 0.9f);
                                     DrawRectangleRec(block->rect, rainbowColor);
+                                    char letter[2] = { '0', '\0' };
+                                    Vector2 textSize = MeasureTextEx(font, letter, 20, 1);
+                                    float textX = block->rect.x + (block->rect.width  - textSize.x) / 2;
+                                    float textY = block->rect.y + (block->rect.height - textSize.y) / 2;
+                                    DrawTextEx(font, letter, (Vector2){ textX + 1, textY + 1 }, 22, 1, Fade(BLACK, 0.5f));
+                                    DrawTextEx(font, letter, (Vector2){ textX, textY }, 22, 1, BLACK);
                                 }
-                                else
+                                else if (block->breakable)
                                 {
-                                    DrawRectangleRec(block->rect, blockColor);
-                                }
-
-                                if (block->breakable)
-                                {
+                                    // Breakable block: draw with screen-shake offset + letter
+                                    Color blockColor = GetBlockColor(block->letter);
                                     Rectangle shakenRect = block->rect;
                                     shakenRect.x += shakeOffset.x;
                                     shakenRect.y += shakeOffset.y;
-                                    DrawRectangleRec(shakenRect, GetBlockColor(block->letter));
-
+                                    DrawRectangleRec(shakenRect, blockColor);
                                     char letter[2] = { block->letter, '\0' };
                                     Vector2 textSize = MeasureTextEx(font, letter, 20, 1);
                                     float textX = block->rect.x + (block->rect.width  - textSize.x) / 2;
@@ -880,7 +938,7 @@ int main()
                                 }
                                 else
                                 {
-                                    DrawPatternedBlock(block->rect, blockColor);
+                                    DrawPatternedBlock(block->rect, BLACK);
                                     DrawRectangleLinesEx(block->rect, 0.5f, GREEN);
                                 }
                             }
@@ -888,6 +946,8 @@ int main()
                     }
                 }
             }
+
+            UpdateAndDrawParticles(deltaTime);
 
             // Invincible indicator (bottom-left)
             for (int i = 0; i < 2; i++)
@@ -955,6 +1015,21 @@ int main()
                         pbScoreBackground.y + (pbScoreBackground.height - pbScoreTextSize.y) / 2
                         },
                         20, 1, BLACK);
+            }
+
+            // Red flash overlay on every wrong key press
+            if (wrongKeyFlash > 0.0f)
+                DrawRectangle(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, Fade(RED, wrongKeyFlash * 0.25f));
+
+            // BUFFER OVERFLOW message after 3 consecutive wrong presses
+            if (bufferOverflow > 0.0f)
+            {
+                const char *tiltText = "!! BUFFER OVERFLOW !!";
+                Vector2 tiltSize = MeasureTextEx(font, tiltText, 24, 1);
+                float tiltX = (SCREEN_WIDTH - tiltSize.x) / 2;
+                float tiltY = 14;
+                DrawRectangle(tiltX - 8, tiltY - 4, tiltSize.x + 16, tiltSize.y + 8, Fade(BLACK, 0.7f));
+                DrawTextEx(font, tiltText, (Vector2){ tiltX, tiltY }, 24, 1, RED);
             }
 
             // GAME OVER SCREEN
@@ -1045,8 +1120,8 @@ int main()
                     (Vector2){ centerX - restartTextSize.x / 2, centerY }, 
                     20, 1, GRAY);
 
-            DrawTextEx(font, soundText, 
-                    (Vector2){(SCREEN_WIDTH - restartTextSize.x) / 2, (SCREEN_HEIGHT - restartTextSize.y) - 10 },
+            DrawTextEx(font, soundText,
+                    (Vector2){(SCREEN_WIDTH - soundTextSize.x) / 2, (SCREEN_HEIGHT - soundTextSize.y) - 10 },
                     20, 1, GRAY);
 
             DrawTextEx(font, "Press Q to Quit to Menu", 
